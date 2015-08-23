@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Yoyodyne, Inc. and others.  All rights reserved.
+ * Copyright (c) Yoyodyne, Inc. and others.  All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 which accompanies this distribution,
@@ -15,6 +15,11 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.opendaylight.controller.mdsal.it.base.AbstractMdsalTestBase;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.hello.rev150105.HelloService;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.hello.rev150105.HelloWorldInput;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.hello.rev150105.HelloWorldInputBuilder;
+import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.hello.rev150105.HelloWorldOutput;
+import org.opendaylight.yangtools.yang.common.RpcResult;
 import org.ops4j.pax.exam.Option;
 import org.ops4j.pax.exam.junit.PaxExam;
 import org.ops4j.pax.exam.karaf.options.LogLevelOption.LogLevel;
@@ -23,6 +28,9 @@ import org.ops4j.pax.exam.spi.reactors.ExamReactorStrategy;
 import org.ops4j.pax.exam.spi.reactors.PerClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 @RunWith(PaxExam.class)
 @ExamReactorStrategy(PerClass.class)
@@ -66,5 +74,20 @@ public class HelloIT extends AbstractMdsalTestBase {
     @Test
     public void testhelloFeatureLoad() {
         Assert.assertTrue(true);
+    }
+
+    @Test
+    public void testRPC() throws InterruptedException, ExecutionException {
+        final String name = "bla bla bla";
+        HelloService service = getSession().getRpcService(HelloService.class);
+
+        HelloWorldInput input = new HelloWorldInputBuilder()
+                .setName(name)
+                .build();
+        Future<RpcResult<HelloWorldOutput>> outputFuture = service.helloWorld(input);
+        RpcResult<HelloWorldOutput> outputResult = outputFuture.get();
+        Assert.assertTrue("RPC was unsuccessful", outputResult.isSuccessful());
+        Assert.assertEquals("Did not receive the expected response to helloWorld RPC", "Hello " + name,
+                outputResult.getResult().getGreeting());
     }
 }
