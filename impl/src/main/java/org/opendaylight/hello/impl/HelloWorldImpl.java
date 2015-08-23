@@ -10,12 +10,11 @@ package org.opendaylight.hello.impl;
 import com.google.common.base.Optional;
 import com.google.common.util.concurrent.CheckedFuture;
 import com.google.common.util.concurrent.Futures;
+import org.opendaylight.controller.md.sal.binding.api.BindingTransactionChain;
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.md.sal.binding.api.ReadOnlyTransaction;
 import org.opendaylight.controller.md.sal.binding.api.WriteTransaction;
-import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
-import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
-import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
+import org.opendaylight.controller.md.sal.common.api.data.*;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.hello.rev150105.*;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.hello.rev150105.greeting.registry.GreetingRegistryEntry;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.hello.rev150105.greeting.registry.GreetingRegistryEntryBuilder;
@@ -28,13 +27,15 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.Future;
 
-public class HelloWorldImpl implements HelloService {
+public class HelloWorldImpl implements HelloService, TransactionChainListener {
     private static final Logger LOG = LoggerFactory.getLogger(HelloWorldImpl.class);
-    private DataBroker db;
+    // private DataBroker db;
+    private BindingTransactionChain tc;
 
     public HelloWorldImpl(DataBroker db) {
-        this.db = db;
-        initializeDataTree(db);
+        // this.db = db;
+        this.tc = db.createTransactionChain(this);
+        initializeDataTree();
     }
 
     @Override
@@ -46,9 +47,9 @@ public class HelloWorldImpl implements HelloService {
         return RpcResultBuilder.success(output).buildFuture();
     }
 
-    private void initializeDataTree(DataBroker db) {
+    private void initializeDataTree() {
         LOG.info("Preparing to initialize the greeting registry");
-        WriteTransaction transaction = db.newWriteOnlyTransaction();
+        WriteTransaction transaction = tc.newWriteOnlyTransaction();
         InstanceIdentifier<GreetingRegistry> iid = InstanceIdentifier.create(GreetingRegistry.class);
         GreetingRegistry greetingRegistry = new GreetingRegistryBuilder().build();
         transaction.put(LogicalDatastoreType.OPERATIONAL, iid, greetingRegistry);
@@ -58,7 +59,7 @@ public class HelloWorldImpl implements HelloService {
     }
 
     private void writeToGreetingRegistry(HelloWorldInput input, HelloWorldOutput output) {
-        WriteTransaction transaction = db.newWriteOnlyTransaction();
+        WriteTransaction transaction = tc.newWriteOnlyTransaction();
         InstanceIdentifier<GreetingRegistryEntry> iid = toInstanceIdentifier(input);
         GreetingRegistryEntry greeting = new GreetingRegistryEntryBuilder()
                 .setGreeting(output.getGreeting())
@@ -71,7 +72,7 @@ public class HelloWorldImpl implements HelloService {
 
     private String readFromGreetingRegistry(HelloWorldInput input) {
         String result = "Hello " + input.getName();
-        ReadOnlyTransaction transaction = db.newReadOnlyTransaction();
+        ReadOnlyTransaction transaction = tc.newReadOnlyTransaction();
         InstanceIdentifier<GreetingRegistryEntry> iid = toInstanceIdentifier(input);
         CheckedFuture<Optional<GreetingRegistryEntry>, ReadFailedException> future =
                 transaction.read(LogicalDatastoreType.CONFIGURATION, iid);
@@ -91,6 +92,16 @@ public class HelloWorldImpl implements HelloService {
         InstanceIdentifier<GreetingRegistryEntry> iid = InstanceIdentifier.create(GreetingRegistry.class)
                 .child(GreetingRegistryEntry.class, new GreetingRegistryEntryKey(input.getName()));
         return iid;
+    }
+
+    @Override
+    public void onTransactionChainFailed(TransactionChain<?, ?> transactionChain, AsyncTransaction<?, ?> asyncTransaction, Throwable throwable) {
+        
+    }
+
+    @Override
+    public void onTransactionChainSuccessful(TransactionChain<?, ?> transactionChain) {
+
     }
 }
 
