@@ -109,7 +109,10 @@ public class HelloIT extends AbstractMdsalTestBase {
 
         DataBroker db = getSession().getSALService(DataBroker.class);
 
-        if (true) {
+        GreetingRegistryDataChangeListenerFuture dataChangeFuture2 =
+                new GreetingRegistryDataChangeListenerFuture(db, name);
+
+        if (false) {
             GreetingRegistryDataChangeListenerFuture dataChangeFuture1 =
                     new GreetingRegistryDataChangeListenerFuture(db, name);
             validateRPCResponse(name, defaultResponse);
@@ -118,8 +121,6 @@ public class HelloIT extends AbstractMdsalTestBase {
 
         programResponse(name, response);
 
-        GreetingRegistryDataChangeListenerFuture dataChangeFuture2 =
-                new GreetingRegistryDataChangeListenerFuture(db, name);
         validateRPCResponse(name, response);
         validateGreetingRegistry(name, response, dataChangeFuture2);
     }
