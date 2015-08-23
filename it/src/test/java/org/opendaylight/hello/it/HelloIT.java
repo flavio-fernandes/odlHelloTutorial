@@ -23,6 +23,7 @@ import org.opendaylight.controller.md.sal.common.api.data.LogicalDatastoreType;
 import org.opendaylight.controller.md.sal.common.api.data.ReadFailedException;
 import org.opendaylight.controller.md.sal.common.api.data.TransactionCommitFailedException;
 import org.opendaylight.controller.mdsal.it.base.AbstractMdsalTestBase;
+import org.opendaylight.hello.GreetingRegistryDataChangeListenerFuture;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.hello.rev150105.*;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.hello.rev150105.greeting.registry.GreetingRegistryEntry;
 import org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.hello.rev150105.greeting.registry.GreetingRegistryEntryBuilder;
@@ -40,6 +41,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @RunWith(PaxExam.class)
 @ExamReactorStrategy(PerClass.class)
@@ -86,21 +89,39 @@ public class HelloIT extends AbstractMdsalTestBase {
     }
 
     @Test
-    public void testRPC() throws InterruptedException, ExecutionException {
+    public void testRPC() throws InterruptedException, ExecutionException, TimeoutException {
         final String name = "bla bla bla";
         final String expectedGreeting = "Hello " + name;
+
+        DataBroker db = getSession().getSALService(DataBroker.class);
+        GreetingRegistryDataChangeListenerFuture dataChangeFuture =
+                new GreetingRegistryDataChangeListenerFuture(db, name);
+
         validateRPCResponse(name, expectedGreeting);
-        validateGreetingRegistry(name, expectedGreeting);
+        validateGreetingRegistry(name, expectedGreeting, dataChangeFuture);
     }
 
     @Test
-    public void testProgrammableRPC() throws InterruptedException, ExecutionException, TransactionCommitFailedException {
+    public void testProgrammableRPC() throws InterruptedException, ExecutionException, TransactionCommitFailedException, TimeoutException {
         final String name = "Colin Dixon";
         final String defaultResponse = "Hello " + name;
         final String response = "Hola " + name;
-        validateRPCResponse(name, defaultResponse);
-        programResponse(name,response);
-        validateGreetingRegistry(name, response);
+
+        DataBroker db = getSession().getSALService(DataBroker.class);
+
+        if (true) {
+            GreetingRegistryDataChangeListenerFuture dataChangeFuture1 =
+                    new GreetingRegistryDataChangeListenerFuture(db, name);
+            validateRPCResponse(name, defaultResponse);
+            validateGreetingRegistry(name, defaultResponse, dataChangeFuture1);
+        }
+
+        programResponse(name, response);
+
+        GreetingRegistryDataChangeListenerFuture dataChangeFuture2 =
+                new GreetingRegistryDataChangeListenerFuture(db, name);
+        validateRPCResponse(name, response);
+        validateGreetingRegistry(name, response, dataChangeFuture2);
     }
 
     private void programResponse(String name, String response) throws TransactionCommitFailedException {
@@ -130,7 +151,14 @@ public class HelloIT extends AbstractMdsalTestBase {
                 outputResult.getResult().getGreeting());
     }
 
-    private void validateGreetingRegistry(String name, String expectedGreeting) {
+    private void validateGreetingRegistry(String name, String expectedGreeting,
+                                          GreetingRegistryDataChangeListenerFuture dataChangeFuture) throws InterruptedException, ExecutionException, TimeoutException {
+        if (dataChangeFuture != null) {
+            // Wait until something changes in the tree we have just modified
+            dataChangeFuture.get(555, TimeUnit.MILLISECONDS);
+            Assert.assertTrue(name + " not modified in greeting registry", dataChangeFuture.isDone());
+        }
+
         InstanceIdentifier<GreetingRegistryEntry> iid = InstanceIdentifier.create(GreetingRegistry.class)
                 .child(GreetingRegistryEntry.class, new GreetingRegistryEntryKey(name));
         DataBroker db = getSession().getSALService(DataBroker.class);
