@@ -1,0 +1,12 @@
+*.iml
+*.ipr
+*.iws
+*.pyc
+*.swp
+*~
+.project
+.idea
+target
+**/target
+*/src/main/yang-gen-sal
+*/src/main/yang-gen-config
