@@ -21,7 +21,11 @@ public class LoggingFuturesCallBack<V> implements FutureCallback<V> {
 
     @Override
     public void onSuccess(V arg0) {
-        LOG.info("Success! {}", arg0);
+        if (arg0 == null) {
+            LOG.info("Success!");
+        } else {
+            LOG.info("Success! {}", arg0);
+        }
     }
 
 }
